@@ -1,0 +1,40 @@
+name: Update 1Hosts Lite Domain List
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"   # 每周一 UTC 04:00
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download 1Hosts Lite list
+        run: |
+          curl -fsSL \
+          https://raw.githubusercontent.com/AdguardTeam/HostlistsRegistry/main/filters/general/filter_24_1Hosts_Lite/filter.txt \
+          -o source.txt
+
+      - name: Extract pure domains
+        run: |
+          grep -vE '^\s*!|^\s*$' source.txt \
+          | sed -E 's/^\|\|([^\/\^]+).*/\1/' \
+          | sed -E 's/^0\.0\.0\.0\s+([^\s]+).*/\1/' \
+          | sed 's/\r//g' \
+          | sort -u > 1Hosts_Lite.txt
+
+      - name: Cleanup
+        run: rm -f source.txt
+
+      - name: Commit & Push
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+
+          git add 1Hosts_Lite.txt
+          git commit -m "Auto update 1Hosts_Lite.txt" || echo "No changes"
+          git push
